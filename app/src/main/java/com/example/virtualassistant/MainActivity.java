@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -21,6 +22,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -37,11 +39,12 @@ import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 public class MainActivity extends AppCompatActivity {
 
     private SpeechRecognizer speechRecognizer;
-    private TextToSpeech textToSpeech;
+    public TextToSpeech textToSpeech;
     private TextView textView;
     private Intent intent;
     private String string = "";
     private ImageView micButton;
+    private int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE=1;
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
@@ -88,19 +91,23 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResults(Bundle results) {
                 ArrayList<String> matches = results.getStringArrayList(speechRecognizer.RESULTS_RECOGNITION);
-                int length=0;
                 textView.setText(matches.get(0));
                 if (matches != null){
                     string=matches.get(0);
-                    length=string.length();
                     string=string.toLowerCase();
                     textView.setText(string);
 
-                    if (string.startsWith("set a timer")){
-                        createTimer(string, length);
+
+                    if (string.indexOf("timer")>0){
+                            createTimer(string, textToSpeech);
+                        }
+                    else if(string.indexOf("picture")>0){
+                        textView.setText(string);
+                        openCamera(textToSpeech);
+                    }
                     }
                 }
-            }
+
             @Override
             public void onPartialResults(Bundle partialResults) {
             }
@@ -149,13 +156,14 @@ public class MainActivity extends AppCompatActivity {
         speechRecognizer.destroy();
     }
 
-    private void createTimer(String value, int len){
+    private void createTimer(String value, TextToSpeech textToSpeech) {
 
         String[] input = value.split(" ");
         int minutes;
         final int[] counter = new int[1];
         minutes =Integer.parseInt(input[input.length -2]);
         counter[0] =minutes;
+        textToSpeech.speak("Timer starting now.", TextToSpeech.QUEUE_FLUSH, null, null);
         new CountDownTimer(minutes*1000, 1000){
             public void onTick(long millisUntilFinished){
                 textView.setText(String.valueOf(counter[0]));
@@ -166,6 +174,16 @@ public class MainActivity extends AppCompatActivity {
             }
         }.start();
     }
+
+
+    private void openCamera(TextToSpeech textToSpeech){
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        textToSpeech.speak("Opening Camera", TextToSpeech.QUEUE_FLUSH, null, null);
+        // start the image capture Intent
+        startActivity(intent);
+    }
+
+
     private void createMethod(){
         File file = new File(Environment.getExternalStorageDirectory() + File.separator + "PersonalAssistant.docx");
         try {
