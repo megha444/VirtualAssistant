@@ -2,8 +2,10 @@ package com.example.virtualassistant;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.SearchManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
@@ -43,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView textView;
     private Intent intent;
     private String string = "";
-    private ImageView micButton;
+    private ImageView micButton, capturedImage;
     private int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE=1;
 
     @SuppressLint("ClickableViewAccessibility")
@@ -57,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
         }
         textView = findViewById(R.id.textView);
         micButton=findViewById(R.id.button);
+        capturedImage=findViewById(R.id.picture);
         textToSpeech = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
@@ -91,20 +94,28 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResults(Bundle results) {
                 ArrayList<String> matches = results.getStringArrayList(speechRecognizer.RESULTS_RECOGNITION);
-                textView.setText(matches.get(0));
+                //textView.setText(matches.get(0));
                 if (matches != null){
                     string=matches.get(0);
                     string=string.toLowerCase();
                     textView.setText(string);
 
-
                     if (string.indexOf("timer")>0){
                             createTimer(string, textToSpeech);
                         }
                     else if(string.indexOf("picture")>0){
-                        textView.setText(string);
                         openCamera(textToSpeech);
                     }
+                    else if(string.indexOf("search")>-1){
+                        googleSearch(string, textToSpeech);
+                    }
+                    else if(string.indexOf("create")>-1){
+                        createMethod(textToSpeech);
+                    }
+                    else{
+                        textToSpeech.speak("I did not understand the command", TextToSpeech.QUEUE_FLUSH, null, null);
+                    }
+
                     }
                 }
 
@@ -125,6 +136,8 @@ public class MainActivity extends AppCompatActivity {
                     speechRecognizer.stopListening();
                 }
                 if (motionEvent.getAction() == MotionEvent.ACTION_DOWN){
+                    capturedImage.setImageResource(0);
+                    textView.setText("");
                     string="";
                     textToSpeech.speak("Hello, How can I help you?", TextToSpeech.QUEUE_FLUSH, null, null);
                     micButton.setBackground(getDrawable(R.drawable.button_state_not_pressed));
@@ -180,18 +193,51 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         textToSpeech.speak("Opening Camera", TextToSpeech.QUEUE_FLUSH, null, null);
         // start the image capture Intent
-        startActivity(intent);
+        startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE) {
+            Bitmap image = (Bitmap) data.getExtras().get("data");
+            ImageView imageview = (ImageView) findViewById(R.id.picture); //sets imageview as the bitmap
+            imageview.setImageBitmap(image);
+        }
     }
 
 
-    private void createMethod(){
-        File file = new File(Environment.getExternalStorageDirectory() + File.separator + "PersonalAssistant.docx");
+    private void googleSearch(String string, TextToSpeech textToSpeech){
+        Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
+        String term = string.substring(7);
+        String speech= "This is what I found for "+term;
+        textToSpeech.speak(speech, TextToSpeech.QUEUE_FLUSH, null, null);
+        intent.putExtra(SearchManager.QUERY, term);
+        startActivity(intent);
+    }
+
+    private void createMethod(TextToSpeech textToSpeech){
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        textToSpeech.speak("What do I write in the file?", TextToSpeech.QUEUE_FLUSH, null, null);
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        File file = new File(Environment.getExternalStorageDirectory() + File.separator + "filetest.txt");
         try {
             if (!file.exists()){
                 file.createNewFile();
             }
+
             FileWriter fileWriter = new FileWriter(file);
-            fileWriter.append("My 1st Personal voice assistance App development");
+            fileWriter.append("My 1st voice assistance App");
+            String path = file.getPath();
+            Log.e("FILE PATH", path);
             fileWriter.flush();
             fileWriter.close();
         }
@@ -199,6 +245,6 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
             return;
         }
-        textToSpeech.speak("The text file has been created. Thank you for using my service.", TextToSpeech.QUEUE_FLUSH, null, null);
+        textToSpeech.speak("The file has been created", TextToSpeech.QUEUE_FLUSH, null, null);
     }
 }
